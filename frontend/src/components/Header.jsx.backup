@@ -1,0 +1,509 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
+import { Button } from './ui/button';
+import { Input } from './ui/input';
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from './ui/dialog';
+import { Menu, X, LogIn, User, Mail, Lock, Eye, EyeOff } from 'lucide-react';
+
+const Header = () => {
+  const [isScrolled, setIsScrolled] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
+  const [isRegistering, setIsRegistering] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: '', password: '' });
+  const [registerForm, setRegisterForm] = useState({ name: '', email: '', password: '', confirmPassword: '' });
+  const [user, setUser] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check if user is logged in
+    const storedUser = localStorage.getItem('user');
+    if (storedUser) {
+      setUser(JSON.parse(storedUser));
+    }
+  }, []);
+
+  useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 50);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  // Reset scroll position when route changes
+  useEffect(() => {
+    window.scrollTo(0, 0);
+    setIsScrolled(false);
+  }, [location.pathname]);
+
+  const navLinks = [
+    { path: '/', label: 'Inicio' },
+    { path: '/nosotros', label: 'Nosotros' },
+    { path: '/proyecto', label: 'El Proyecto' },
+    { path: '/lotes', label: 'Lotes' },
+    { path: '/sostenibilidad', label: 'Sostenibilidad' },
+    { path: '/refiere-y-gana', label: 'Refiere y Gana' },
+    { path: '/vende-tu-terreno', label: 'Vende tu terreno' },
+    { path: '/eventos', label: 'Eventos' },
+    { path: '/contacto', label: 'Contacto' }
+  ];
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/login`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(loginForm)
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Save token and user info
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+        
+        alert(`¡Bienvenido ${data.user.name}!`);
+        setIsLoginModalOpen(false);
+        setLoginForm({ email: '', password: '' });
+
+        // Redirect admin or colaborador to admin panel
+        if (data.user.role === 'admin' || data.user.role === 'colaborador') {
+          window.location.href = '/admin-panel-prados';
+        }
+      } else {
+        alert(data.detail || 'Error al iniciar sesión');
+      }
+    } catch (error) {
+      alert('Error de conexión');
+      console.error('Login error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    if (registerForm.password !== registerForm.confirmPassword) {
+      alert('Las contraseñas no coinciden');
+      return;
+    }
+    setLoading(true);
+
+    try {
+      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/auth/register`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          email: registerForm.email,
+          name: registerForm.name,
+          password: registerForm.password,
+          role: 'user'
+        })
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Save token and user info
+        localStorage.setItem('token', data.access_token);
+        localStorage.setItem('user', JSON.stringify(data.user));
+        setUser(data.user);
+        
+        alert(`¡Cuenta creada exitosamente! Bienvenido ${data.user.name}`);
+        setIsLoginModalOpen(false);
+        setIsRegistering(false);
+        setRegisterForm({ name: '', email: '', password: '', confirmPassword: '' });
+      } else {
+        alert(data.detail || 'Error al crear cuenta');
+      }
+    } catch (error) {
+      alert('Error de conexión');
+      console.error('Register error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    setUser(null);
+    window.location.href = '/';
+  };
+
+  return (
+    <header
+      className={`fixed top-0 left-0 right-0 z-50 transition-all duration-500 ${
+        isScrolled 
+          ? 'bg-white shadow-lg' 
+          : 'bg-transparent'
+      }`}
+    >
+      <div className="container mx-auto px-4">
+        <div className="flex items-center justify-between h-20">
+          {/* Logo */}
+          <Link to="/" className="flex items-center space-x-2 xl:space-x-3 flex-shrink-0">
+            <img 
+              src="/prados-logo.svg" 
+              alt="Prados de Paraíso" 
+              className={`h-10 xl:h-12 w-auto transition-all duration-300 ${!isScrolled ? 'brightness-0 invert' : ''}`}
+            />
+            <div className="flex flex-col">
+              <span className={`text-base xl:text-xl font-bold transition-colors duration-300 ${
+                isScrolled ? 'text-brand-green' : 'text-white'
+              }`}>
+                Prados de Paraíso
+              </span>
+              <span className={`text-xs transition-colors duration-300 hidden sm:block ${
+                isScrolled ? 'text-brand-green-dark' : 'text-white/90'
+              }`}>
+                Villa Eco-Sostenible
+              </span>
+            </div>
+          </Link>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden xl:flex items-center space-x-1">
+            {navLinks.map((link) => (
+              <Link
+                key={link.path}
+                to={link.path}
+                className={`px-3 py-2 text-sm font-medium rounded-lg transition-all duration-300 whitespace-nowrap ${
+                  location.pathname === link.path
+                    ? isScrolled 
+                      ? 'text-brand-green bg-brand-green/10' 
+                      : 'text-white bg-white/20'
+                    : isScrolled
+                      ? 'text-gray-700 hover:text-brand-green hover:bg-brand-green/10'
+                      : 'text-white/90 hover:text-white hover:bg-white/20'
+                }`}
+              >
+                {link.label}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Login/User Button */}
+          <div className="hidden xl:flex items-center space-x-3 flex-shrink-0">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className={`text-sm font-medium ${isScrolled ? 'text-stone-700' : 'text-white'}`}>
+                  {user.name}
+                </span>
+                <Button
+                  onClick={handleLogout}
+                  variant="outline"
+                  className={`transition-all duration-300 whitespace-nowrap ${
+                    isScrolled
+                      ? 'border-brand-green text-brand-green hover:bg-brand-green hover:text-white'
+                      : 'bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30'
+                  }`}
+                >
+                  <LogIn className="w-4 h-4 mr-2 rotate-180" />
+                  Salir
+                </Button>
+              </div>
+            ) : (
+              <Button
+                onClick={() => setIsLoginModalOpen(true)}
+                className={`transition-all duration-300 whitespace-nowrap ${
+                  isScrolled
+                    ? 'bg-brand-green hover:bg-brand-green-dark text-white'
+                    : 'bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30'
+                }`}
+              >
+                <LogIn className="w-4 h-4 mr-2" />
+                Iniciar Sesión
+              </Button>
+            )}
+          </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+            className={`xl:hidden p-2 rounded-lg transition-all duration-300 ${
+              isScrolled
+                ? 'hover:bg-brand-green/10'
+                : 'hover:bg-white/20'
+            }`}
+          >
+            {isMobileMenuOpen ? (
+              <X className={`w-6 h-6 transition-colors duration-300 ${
+                isScrolled ? 'text-brand-green' : 'text-white'
+              }`} />
+            ) : (
+              <Menu className={`w-6 h-6 transition-colors duration-300 ${
+                isScrolled ? 'text-brand-green' : 'text-white'
+              }`} />
+            )}
+          </button>
+        </div>
+
+        {/* Mobile Menu */}
+        {isMobileMenuOpen && (
+          <div className={`xl:hidden py-4 border-t transition-colors duration-300 ${
+            isScrolled 
+              ? 'border-brand-green/20 bg-white' 
+              : 'border-white/20 bg-black/30 backdrop-blur-md'
+          }`}>
+            <nav className="flex flex-col space-y-2">
+              {navLinks.map((link) => (
+                <Link
+                  key={link.path}
+                  to={link.path}
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={`px-4 py-3 text-sm font-medium rounded-lg transition-all duration-300 ${
+                    location.pathname === link.path
+                      ? isScrolled
+                        ? 'text-brand-green bg-brand-green/10'
+                        : 'text-white bg-white/20'
+                      : isScrolled
+                        ? 'text-gray-700 hover:text-brand-green hover:bg-brand-green/10'
+                        : 'text-white/90 hover:text-white hover:bg-white/20'
+                  }`}
+                >
+                  {link.label}
+                </Link>
+              ))}
+              {user ? (
+                <div className="mt-4 space-y-2">
+                  <div className={`px-4 py-2 text-sm font-medium ${isScrolled ? 'text-stone-700' : 'text-white'}`}>
+                    Hola, {user.name}
+                  </div>
+                  <Button
+                    onClick={() => {
+                      handleLogout();
+                      setIsMobileMenuOpen(false);
+                    }}
+                    variant="outline"
+                    className={`w-full ${
+                      isScrolled
+                        ? 'border-brand-green text-brand-green'
+                        : 'bg-white/20 backdrop-blur-sm text-white border border-white/30'
+                    }`}
+                  >
+                    <LogIn className="w-4 h-4 mr-2 rotate-180" />
+                    Cerrar Sesión
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  onClick={() => {
+                    setIsLoginModalOpen(true);
+                    setIsMobileMenuOpen(false);
+                  }}
+                  className={`mt-4 transition-all duration-300 ${
+                    isScrolled
+                      ? 'bg-brand-green hover:bg-brand-green-dark text-white'
+                      : 'bg-white/20 backdrop-blur-sm hover:bg-white/30 text-white border border-white/30'
+                  }`}
+                >
+                  <LogIn className="w-4 h-4 mr-2" />
+                  Iniciar Sesión
+                </Button>
+              )}
+            </nav>
+          </div>
+        )}
+      </div>
+
+      {/* Login/Register Modal */}
+      <Dialog open={isLoginModalOpen} onOpenChange={setIsLoginModalOpen}>
+        <DialogContent className="sm:max-w-[480px]">
+          <DialogHeader>
+            <DialogTitle className="text-2xl font-bold text-stone-900">
+              {isRegistering ? 'Crear Cuenta' : 'Iniciar Sesión'}
+            </DialogTitle>
+            <DialogDescription className="text-stone-600">
+              {isRegistering 
+                ? 'Completa los datos para crear tu cuenta'
+                : 'Ingresa tus credenciales para acceder'
+              }
+            </DialogDescription>
+          </DialogHeader>
+
+          {/* Login Form */}
+          {!isRegistering && (
+            <form onSubmit={handleLogin} className="space-y-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Correo electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type="email"
+                    required
+                    value={loginForm.email}
+                    onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                    placeholder="tu@email.com"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={loginForm.password}
+                    onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between text-sm">
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input type="checkbox" className="rounded border-stone-300" />
+                  <span className="text-stone-600">Recordarme</span>
+                </label>
+                <a href="#" className="text-brand-green hover:text-brand-green-dark">
+                  ¿Olvidaste tu contraseña?
+                </a>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <Button type="submit" className="w-full bg-brand-green hover:bg-brand-green-dark text-white">
+                  Iniciar Sesión
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => setIsRegistering(true)}
+                  className="w-full"
+                >
+                  ¿No tienes cuenta? Regístrate
+                </Button>
+              </div>
+            </form>
+          )}
+
+          {/* Register Form */}
+          {isRegistering && (
+            <form onSubmit={handleRegister} className="space-y-4 mt-4">
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Nombre completo
+                </label>
+                <div className="relative">
+                  <User className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type="text"
+                    required
+                    value={registerForm.name}
+                    onChange={(e) => setRegisterForm({ ...registerForm, name: e.target.value })}
+                    placeholder="Juan Pérez"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Correo electrónico
+                </label>
+                <div className="relative">
+                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type="email"
+                    required
+                    value={registerForm.email}
+                    onChange={(e) => setRegisterForm({ ...registerForm, email: e.target.value })}
+                    placeholder="tu@email.com"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={registerForm.password}
+                    onChange={(e) => setRegisterForm({ ...registerForm, password: e.target.value })}
+                    placeholder="••••••••"
+                    className="pl-10 pr-10"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-stone-400 hover:text-stone-600"
+                  >
+                    {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-stone-700 mb-2">
+                  Confirmar contraseña
+                </label>
+                <div className="relative">
+                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-stone-400" />
+                  <Input
+                    type={showPassword ? 'text' : 'password'}
+                    required
+                    value={registerForm.confirmPassword}
+                    onChange={(e) => setRegisterForm({ ...registerForm, confirmPassword: e.target.value })}
+                    placeholder="••••••••"
+                    className="pl-10"
+                  />
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-3 pt-2">
+                <Button type="submit" className="w-full bg-brand-green hover:bg-brand-green-dark text-white">
+                  Crear Cuenta
+                </Button>
+                <Button 
+                  type="button" 
+                  variant="outline" 
+                  onClick={() => {
+                    setIsRegistering(false);
+                    setRegisterForm({ name: '', email: '', password: '', confirmPassword: '' });
+                  }}
+                  className="w-full"
+                >
+                  ¿Ya tienes cuenta? Inicia sesión
+                </Button>
+              </div>
+            </form>
+          )}
+        </DialogContent>
+      </Dialog>
+    </header>
+  );
+};
+
+export default Header;
