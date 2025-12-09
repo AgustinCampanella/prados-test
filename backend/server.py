@@ -91,6 +91,20 @@ api_router.include_router(event_registrations_router, prefix="/event-registratio
 # Include the router in the main app
 app.include_router(api_router)
 
+# Add root endpoint for health checks
+@app.get("/")
+async def root_redirect():
+    """Root endpoint - redirects to API docs"""
+    return {
+        "message": "Prados de Paraíso API",
+        "version": "1.0.0",
+        "endpoints": {
+            "api": "/api/",
+            "docs": "/docs",
+            "health": "/api/"
+        }
+    }
+
 app.add_middleware(
     CORSMiddleware,
     allow_credentials=True,
